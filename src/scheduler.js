@@ -33,15 +33,32 @@ function getDoctorConfig() {
   return DOCTORS.filter((d) => d && d.name);
 }
 
-function startSchedulers() {
-  // TEST: Patient reminder at 10:55 AM IST (change back to '0 20 * * *' after test)
-  cron.schedule(
-    "55 10 * * *",
+// Call this right after booking is confirmed
+async function sendReminderAfterBooking(appointment) {
+  setTimeout(
     async () => {
       try {
-        console.log("⏰ Reminder job started...");
+        console.log(`⏰ Sending 2-min reminder to ${appointment.patient_name}`);
+        const body = formatPatientReminder(appointment);
+        await sendWhatsApp(appointment.phone, body);
+        console.log(`✅ Reminder sent to ${appointment.patient_name}`);
+      } catch (err) {
+        console.error("Immediate reminder failed:", err);
+      }
+    },
+    2 * 60 * 1000,
+  ); // 2 minutes in milliseconds
+}
+
+function startSchedulers() {
+  // Nightly 8 PM IST — remind tomorrow's appointments
+  cron.schedule(
+    "0 20 * * *",
+    async () => {
+      try {
+        console.log("⏰ Nightly reminder job started...");
         const appointments = await getTomorrowAppointments();
-        console.log(`Found ${appointments.length} appointments to remind`);
+        console.log(`Found ${appointments.length} appointments`);
 
         for (const appt of appointments) {
           const body = formatPatientReminder(appt);
@@ -58,7 +75,7 @@ function startSchedulers() {
     },
   );
 
-  // Doctor morning summary — 8 AM IST daily
+  // Daily 8 AM IST — doctor morning summary
   cron.schedule(
     "0 8 * * *",
     async () => {
@@ -81,4 +98,4 @@ function startSchedulers() {
   );
 }
 
-module.exports = { startSchedulers };
+module.exports = { startSchedulers, sendReminderAfterBooking };

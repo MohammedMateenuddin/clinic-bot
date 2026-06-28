@@ -1,6 +1,7 @@
 const { processMessage } = require("./flow");
 const { saveAppointment } = require("./supabase");
 const { notifyReceptionist, sendWhatsApp } = require("./notify");
+const { sendReminderAfterBooking } = require("./scheduler");
 
 function getBodyText(req) {
   return req.body && req.body.Body ? req.body.Body : "";
@@ -17,9 +18,6 @@ async function handleWebhook(req, res) {
 
     const result = await processMessage({ phone, message });
 
-    // Twilio expects a response via TwiML, but per spec:
-    // - If result is string -> reply directly
-    // - If result is object -> save + notify receptionist + reply confirmation
     if (typeof result === "string") {
       await sendWhatsApp(phone, result);
       return res.status(200).send("OK");
@@ -40,10 +38,12 @@ async function handleWebhook(req, res) {
 
       await sendWhatsApp(phone, confirmText);
 
+      // Send reminder 2 mins after booking
+      sendReminderAfterBooking(appointment);
+
       return res.status(200).send("OK");
     }
 
-    // fallback
     await sendWhatsApp(phone, "Sorry, something went wrong. Please try again.");
     return res.status(200).send("OK");
   } catch (err) {
