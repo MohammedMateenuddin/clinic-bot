@@ -1,0 +1,10 @@
+# Dependencies
+node_modules/
+# Environment variables
+.env
+# npm
+package-lock.json
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
