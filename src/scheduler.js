@@ -36,7 +36,7 @@ function getDoctorConfig() {
 
 function startSchedulers() {
   // 8 PM nightly: reminders for tomorrow unreminded appointments
-  cron.schedule("38 10 * * *", async () => {
+  cron.schedule("45 10 * * *", async () => {
     try {
       const appointments = await getTomorrowAppointments();
 
