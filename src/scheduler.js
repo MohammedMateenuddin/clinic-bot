@@ -30,47 +30,55 @@ function formatDoctorMorningSummary(doctorName, appointments) {
 }
 
 function getDoctorConfig() {
-  // DOCTORS items include name and phone from env in flow.js
   return DOCTORS.filter((d) => d && d.name);
 }
 
 function startSchedulers() {
-  // 8 PM nightly: reminders for tomorrow unreminded appointments
-  cron.schedule("45 10 * * *", async () => {
-    try {
-      const appointments = await getTomorrowAppointments();
+  // TEST: Patient reminder at 10:55 AM IST (change back to '0 20 * * *' after test)
+  cron.schedule(
+    "55 10 * * *",
+    async () => {
+      try {
+        console.log("⏰ Reminder job started...");
+        const appointments = await getTomorrowAppointments();
+        console.log(`Found ${appointments.length} appointments to remind`);
 
-      for (const appt of appointments) {
-        // Send reminder to patient
-        const body = formatPatientReminder(appt);
-        await sendWhatsApp(appt.phone, body);
-
-        // Mark reminded
-        await markReminded(appt.id);
+        for (const appt of appointments) {
+          const body = formatPatientReminder(appt);
+          await sendWhatsApp(appt.phone, body);
+          await markReminded(appt.id);
+          console.log(`✅ Reminded: ${appt.patient_name}`);
+        }
+      } catch (err) {
+        console.error("Nightly reminder job failed:", err);
       }
-    } catch (err) {
-      console.error("Nightly reminder job failed:", err);
-    }
-  });
+    },
+    {
+      timezone: "Asia/Kolkata",
+    },
+  );
 
-  // 8 AM daily: morning summary per doctor for today's appointments
-  cron.schedule("0 8 * * *", async () => {
-    try {
-      const doctors = getDoctorConfig();
-
-      for (const doctor of doctors) {
-        if (!doctor.phone) continue;
-
-        const appointments = await getTodayByDoctor(doctor.name);
-        if (!appointments.length) continue;
-
-        const body = formatDoctorMorningSummary(doctor.name, appointments);
-        await sendWhatsApp(doctor.phone, body);
+  // Doctor morning summary — 8 AM IST daily
+  cron.schedule(
+    "0 8 * * *",
+    async () => {
+      try {
+        const doctors = getDoctorConfig();
+        for (const doctor of doctors) {
+          if (!doctor.phone) continue;
+          const appointments = await getTodayByDoctor(doctor.name);
+          if (!appointments.length) continue;
+          const body = formatDoctorMorningSummary(doctor.name, appointments);
+          await sendWhatsApp(doctor.phone, body);
+        }
+      } catch (err) {
+        console.error("Morning summary job failed:", err);
       }
-    } catch (err) {
-      console.error("Morning summary job failed:", err);
-    }
-  });
+    },
+    {
+      timezone: "Asia/Kolkata",
+    },
+  );
 }
 
 module.exports = { startSchedulers };
